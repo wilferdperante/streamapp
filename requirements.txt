@@ -1,13 +1,6 @@
-pickle
-flask
-flask-restx
 pandas
 numpy
-requests
-gunicorn
-joblib
-scikit-learn>=1.0.0
+nltk
+xgboost==1.5.2
+scikit-learn
 streamlit
-rich>=10.14.0
-nltk>=3.0.0
-xgboost>=2.0.0
