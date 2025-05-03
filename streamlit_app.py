@@ -6,74 +6,100 @@ import numpy as np
 import string
 import nltk
 from nltk.corpus import stopwords
-import string
 from nltk.stem.porter import PorterStemmer
-import pandas as pd
-ps = PorterStemmer()   
 from xgboost import XGBClassifier
+import os
 
-# Download all required NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
-nltk.download('omw-1.4')
-nltk.download('averaged_perceptron_tagger')
+# Download all required NLTK data with error handling
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
+    
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+
+# Initialize stemmer
+ps = PorterStemmer()
 
 def transform_text(text):
-    text = text.lower()
-    y = []
-    # tokenization
-    text = nltk.word_tokenize(text)
-    for i in text:
-        if i.isalnum():
-            y.append(i)
-    text = y[:]
-    y.clear()
-    # removing stopwords and punctuations
-    for i in text:
-        if i not in stopwords.words('english') and i not in string.punctuation:
-            y.append(i)
-    text = y[:]
-    y.clear()
-    
-    # stemming applied on text
-    for i in text:
-        y.append(ps.stem(i))
-    return " ".join(y)  # Return as space-separated string
+    try:
+        text = str(text).lower()
+        y = []
+        # Tokenization with error handling
+        try:
+            text = nltk.word_tokenize(text)
+        except:
+            # Fallback simple tokenization if punkt fails
+            text = text.split()
+            
+        for i in text:
+            if i.isalnum():
+                y.append(i)
+        text = y[:]
+        y.clear()
+        
+        # Removing stopwords and punctuations
+        stop_words = set(stopwords.words('english'))
+        for i in text:
+            if i not in stop_words and i not in string.punctuation:
+                y.append(i)
+        text = y[:]
+        y.clear()
+        
+        # Stemming
+        for i in text:
+            y.append(ps.stem(i))
+            
+        return " ".join(y)
+    except Exception as e:
+        st.error(f"Error processing text: {str(e)}")
+        return ""
 
-# Load your models (adjust paths as needed)
-tfidf = pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl', 'rb'))
-model = pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl', 'rb'))
+# Load models - adjust paths as needed
+try:
+    tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
+    model = pickle.load(open('mnb_spam_detector.pkl', 'rb'))
+except Exception as e:
+    st.error(f"Failed to load models: {str(e)}")
+    st.stop()
 
+# App UI
 st.title("SMS Spam classifier")
 
-# Content
-st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
+try:
+    st.image(Image.open('spam_image.jpeg'))
+except:
+    st.warning("Could not load image")
 
 st.write("""
-A spam classifier uses machine learning to distinguish between legitimate and unsolicited emails. It employs algorithm to analyze content and other features to flag emails spam or not spam.
-
-Algorithm used to train the model is stacking classifier(SVM, NB, Xgboost)
+A spam classifier uses machine learning to distinguish between legitimate and unsolicited messages.
+Algorithm used: stacking classifier (SVM, NB, Xgboost)
 """)
 
 input_sms = st.text_area("Enter the message to check")
 
 if st.button('Predict'):
-    if input_sms.strip() == "":
-        st.warning("Please enter a message to check")
+    if not input_sms.strip():
+        st.warning("Please enter a message")
     else:
-        # 1. preprocess    
-        transform_sms = transform_text(input_sms)
-        # 2. vectorize
-        vector_input = tfidf.transform([transform_sms]).toarray()  # Note the list wrapping
-        # 3. predict
-        prediction = model.predict(vector_input)[0]
-        # 4. display
-        if prediction == 1:
-            st.header("Spam")
-        else:
-            st.header("Not Spam")
+        try:
+            # Transform and predict
+            transform_sms = transform_text(input_sms)
+            if transform_sms:  # Only proceed if transformation succeeded
+                vector_input = tfidf.transform([transform_sms]).toarray()
+                prediction = model.predict(vector_input)[0]
+                
+                if prediction == 1:
+                    st.error("Spam 🚨")
+                else:
+                    st.success("Not Spam ✅")
+        except Exception as e:
+            st.error(f"Prediction failed: {str(e)}")
 
+# Footer columns
 c1, c2, c3 = st.columns(3)
 with c1:
     st.info('**GitHub:[@anilremo23](https://github.com/anilremo23)**', icon="🧠")
