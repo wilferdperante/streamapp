@@ -40,11 +40,21 @@ def transform_text(text):
 #loading  both the models from respective directory
 tfidf=pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl','rb'))
 model=pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl','rb'))
-#streamlit app title
-st.title("SMS Spam classifier")        
- 
- 
+
+st.title("SMS Spam classifier")
+
+#content
+
 st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
+
+st.write("""
+A spam classifier uses machine learning to distinguish between legitimate and unsolicited emails . it employs algorithm to analyze content and other features to flag emails spam or not spam.
+
+Algorithm used to train the model is stacking classifier(SVM,NB,Xgboost)
+
+"""
+ 
+)
 
 input_sms= st.text_area("Enter the message")
  
