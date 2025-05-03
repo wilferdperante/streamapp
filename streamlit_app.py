@@ -79,8 +79,8 @@ def transform_text(text):
 try:
     # Try loading from absolute path first
     try:
-        tfidf = pickle.load(open('/mount/src/streamapp/vectorizer.pkl', 'rb'))
-        model = pickle.load(open('/mount/src/streamapp/mnb_spam_detector.pkl', 'rb'))
+        tfidf = pickle.load(open('/mount/src/streamapp/SMS_Spam_Classifier/vectorizer.pkl', 'rb'))
+        model = pickle.load(open('/mount/src/streamapp/SMS_Spam_Classifier/mnb_spam_detector.pkl', 'rb'))
     except:
         # Fallback to relative path
         tfidf = pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl', 'rb'))
