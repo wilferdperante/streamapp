@@ -44,7 +44,7 @@ model=pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl','rb'))
 st.title("SMS Spam classifier")        
  
  
- st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
+st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
 
 input_sms= st.text_area("Enter the message")
  
