@@ -47,20 +47,21 @@ st.title("SMS Spam classifier")
 input_sms= st.text_area("Enter the message")
  
 #predict button , when clicked will execute the process
-if st.button('Predict'):
- 
-#1.preprocess- converting the input_sms received by user on app  
- 
-    transform_sms=transform_text(input_sms)
-    print(type(transform_sms))
-    transform_sms=np.array(transform_sms) #converting the list of string format to array of string format
- 
-#2.vectorize - converting the received text SMS into numeric for model understanding
- 
-    vector_input=tfidf.transform(transform_sms.astype('str')).toarray()
-    print(type(vector_input))
-    print(vector_input)
-    vector_input =    pd.DataFrame(vector_input,columns=tfidf.get_feature_names_out())
+if st.button("Predict"):
+    if input_sms:
+        # Convert text to vector form using vectorizer
+        vector_input = vectorizer.transform([input_sms])
+
+        # Predict using the model
+        prediction = model.predict(vector_input)[0]
+
+        # Display result
+        if prediction == 1:
+            st.success("This is a Spam message.")
+        else:
+            st.info("This is a Ham (Not Spam) message.")
+    else:
+        st.warning("Please enter a message first!")
  
 #3.predict - passing the converted text to model to predict if it is spam or ham
  
