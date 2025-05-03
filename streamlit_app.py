@@ -1,77 +1,142 @@
-import streamlit as st  #used for streamlit api reference
-# below all libraries were part of SMS Spam classifier model building and hence add them again.
-import pickle     #to load the saved pickle files
+import streamlit as st
+from PIL import Image
+import pickle
 import pandas as pd
 import numpy as np
 import string
-import nltk      #natural language tool kit used for text processing
-from nltk.corpus import stopwords  #text processing
-import string
-from nltk.stem.porter import PorterStemmer  #text processing
-import pandas as pd
-ps=PorterStemmer()   
-from xgboost import XGBClassifier
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+import os
 
-nltk.download('punkt')
-nltk.download('stopwords')
+# =============================================
+# NLTK Setup with Persistent Download Solution
+# =============================================
+try:
+    # Try to find the punkt resource
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    # If not found, download with custom path
+    nltk.download('punkt', download_dir='/tmp/nltk_data')
+    nltk.data.path.append('/tmp/nltk_data')
 
-#function to convert SMS text to numerical form ,SMS text  we will receive on our deployed app to predict.
+try:
+    # Try to find stopwords
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    # If not found, download with custom path
+    nltk.download('stopwords', download_dir='/tmp/nltk_data')
+    nltk.data.path.append('/tmp/nltk_data')
+
+# Initialize stemmer
+ps = PorterStemmer()
+
+# =============================================
+# Text Processing with Fallback Tokenizer
+# =============================================
 def transform_text(text):
-        text=text.lower()
-        y=[]
-        #tokenization
-        text=nltk.word_tokenize(text)
+    try:
+        text = str(text).lower()
+        y = []
+        
+        # Attempt NLTK tokenization with fallback
+        try:
+            text = nltk.word_tokenize(text)
+        except:
+            # Simple whitespace tokenizer fallback
+            text = text.split()
+            
         for i in text:
             if i.isalnum():
                 y.append(i)
-        text=y[:]
+        text = y[:]
         y.clear()
-        #removing stopwords and punctuations
+        
+        # Get stopwords with fallback
+        try:
+            stop_words = set(stopwords.words('english'))
+        except:
+            stop_words = set()  # Empty set if stopwords not available
+            
         for i in text:
-            if i not in stopwords.words('english') and i not in string.punctuation:
+            if i not in stop_words and i not in string.punctuation:
                 y.append(i)
-        text=y[:]
+        text = y[:]
         y.clear()
-    
-        #stemming applied on text
+        
+        # Stemming
         for i in text:
             y.append(ps.stem(i))
-        return y
-#loading  both the models from respective directory
-tfidf=pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl','rb'))
-model=pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl','rb'))
+            
+        return " ".join(y)
+    except Exception as e:
+        st.error(f"Error processing text: {str(e)}")
+        return ""
 
-st.title("SMS Spam classifier")
+# =============================================
+# Model Loading with Verification
+# =============================================
+try:
+    # Try loading from absolute path first
+    try:
+        tfidf = pickle.load(open('/mount/src/streamapp/vectorizer.pkl', 'rb'))
+        model = pickle.load(open('/mount/src/streamapp/mnb_spam_detector.pkl', 'rb'))
+    except:
+        # Fallback to relative path
+        tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
+        model = pickle.load(open('mnb_spam_detector.pkl', 'rb'))
+        
+    # Verify vectorizer is fitted
+    if not hasattr(tfidf, 'vocabulary_'):
+        raise ValueError("Vectorizer is not fitted properly")
+except Exception as e:
+    st.error(f"Model loading failed: {str(e)}")
+    st.stop()
 
-#content
+# =============================================
+# Streamlit UI
+# =============================================
+st.title("SMS Spam Classifier")
 
+# Image with fallback
+try:
+    st.image(Image.open('spam_image.jpeg'))
+except:
+    st.warning("Could not load preview image")
 
-input_sms= st.text_area("Enter the message")
- 
-#predict button , when clicked will execute the process
+st.write("""
+This classifier detects spam SMS messages using machine learning.
+""")
+
+input_sms = st.text_area("Enter the message to check")
+
 if st.button('Predict'):
- 
-#1.preprocess- converting the input_sms received by user on app  
- 
-    transform_sms=transform_text(input_sms)
-    print(type(transform_sms))
-    transform_sms=np.array(transform_sms) #converting the list of string format to array of string format
- 
-#2.vectorize - converting the received text SMS into numeric for model understanding
- 
-    vector_input=tfidf.transform(transform_sms.astype('str')).toarray()
-    print(type(vector_input))
-    print(vector_input)
-    vector_input =    pd.DataFrame(vector_input,columns=tfidf.get_feature_names_out())
- 
-#3.predict - passing the converted text to model to predict if it is spam or ham
- 
-    prediction= model.predict(vector_input)[0]
- 
-#4.display- the result on app itself , if prediction result is 1 then ui(button) will display  Spam else Not Spam
-    
-    if prediction==1:
-        st.header("Spam")
+    if not input_sms.strip():
+        st.warning("Please enter a message")
     else:
-        st.header("Not Spam")
+        try:
+            # Transform and predict
+            transformed = transform_text(input_sms)
+            vectorized = tfidf.transform([transformed])
+            prediction = model.predict(vectorized)[0]
+            
+            if prediction == 1:
+                st.error("Spam 🚨")
+            else:
+                st.success("Not Spam ✅")
+                
+        except Exception as e:
+            st.error(f"Prediction failed: {str(e)}")
+            st.write("Debug Info:")
+            st.write(f"Input text: {input_sms}")
+            st.write(f"Transformed text: {transformed}")
 
+# Footer
+st.markdown("---")
+cols = st.columns(3)
+with cols[0]:
+    st.info('**[GitHub](https://github.com/anilremo23)**')
+with cols[1]:
+    st.info('**[Kaggle](https://www.kaggle.com/remoanil)**')
+with cols[2]:
+    st.info('**[LinkedIn](https://www.linkedin.com/in/anil-mamidwar-001b6418/)**')
