@@ -60,8 +60,8 @@ def transform_text(text):
 
 # Load models - adjust paths as needed
 try:
-    tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
-    model = pickle.load(open('mnb_spam_detector.pkl', 'rb'))
+    tfidf = pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl', 'rb'))
+    model = pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl', 'rb'))
 except Exception as e:
     st.error(f"Failed to load models: {str(e)}")
     st.stop()
@@ -70,7 +70,7 @@ except Exception as e:
 st.title("SMS Spam classifier")
 
 try:
-    st.image(Image.open('spam_image.jpeg'))
+    st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
 except:
     st.warning("Could not load image")
 
