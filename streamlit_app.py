@@ -1,22 +1,22 @@
-import streamlit as st
-from PIL import Image
-import pickle
+import streamlit as st  #used for streamlit api reference
+# below all libraries were part of SMS Spam classifier model building and hence add them again.
+import pickle     #to load the saved pickle files
 import pandas as pd
 import numpy as np
 import string
-import nltk
-from nltk.corpus import stopwords
+import nltk      #natural language tool kit used for text processing
+from nltk.corpus import stopwords  #text processing
 import string
-from nltk.stem.porter import PorterStemmer
+from nltk.stem.porter import PorterStemmer  #text processing
 import pandas as pd
 ps=PorterStemmer()   
 from xgboost import XGBClassifier
-
+<<<<<<< HEAD
+=======
 nltk.download('punkt')
 nltk.download('stopwords')
-
-
-
+>>>>>>> 3d47b8555834dff27e3b68b93ead18c2f8d13b7f
+#function to convert SMS text to numerical form ,SMS text  we will receive on our deployed app to predict.
 def transform_text(text):
         text=text.lower()
         y=[]
@@ -38,65 +38,41 @@ def transform_text(text):
         for i in text:
             y.append(ps.stem(i))
         return y
-
-
-
-
-#remove SMS_Spam_Classifier name from path while deploying locally 
-
+#loading  both the models from respective directory
 tfidf=pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl','rb'))
 model=pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl','rb'))
-
-st.title("SMS Spam classifier")
-
-#content
-
-st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
-
-st.write("""
-A spam classifier uses machine learning to distinguish between legitimate and unsolicited emails . it employs algorithm to analyze content and other features to flag emails spam or not spam.
-
-Algorithm used to train the model is stacking classifier(SVM,NB,Xgboost)
-
-"""
+#streamlit app title
+st.title("SMS Spam classifier")        
  
-)
-
-
-
-
-input_sms= st.text_area("Enter the message to check")
-
-
+ 
+ 
+text input where user will enter the SMS text to predict (As shown above)
+input_sms= st.text_area("Enter the message")
+ 
+#predict button , when clicked will execute the process
 if st.button('Predict'):
-
-    #1.preprocess    
-    transform_sms=transform_text(input_sms)
+ 
+#1.preprocess- converting the input_sms received by user on app  
+ 
+transform_sms=transform_text(input_sms)
     print(type(transform_sms))
-    transform_sms=np.array(transform_sms)
-    #2.vectorize
-    vector_input=tfidf.transform(transform_sms.astype('str')).toarray()
+    transform_sms=np.array(transform_sms) #converting the list of string format to array of string format
+ 
+#2.vectorize - converting the received text SMS into numeric for model understanding
+ 
+vector_input=tfidf.transform(transform_sms.astype('str')).toarray()
     print(type(vector_input))
     print(vector_input)
-    vector_input = pd.DataFrame(vector_input,columns=tfidf.get_feature_names_out())
-
-    #3.predict
-
-    prediction= model.predict(vector_input)[0]
-    #4.display
-    #st.header("Spam") if prediction else st.header("Not Spam")
+    vector_input =    pd.DataFrame(vector_input,columns=tfidf.get_feature_names_out())
+ 
+#3.predict - passing the converted text to model to predict if it is spam or ham
+ 
+prediction= model.predict(vector_input)[0]
+ 
+#4.display- the result on app itself , if prediction result is 1 then ui(button) will display  Spam else Not Spam
+    
     if prediction==1:
         st.header("Spam")
     else:
         st.header("Not Spam")
-        
 
-c1,c2,c3 = st.columns(3)
-with c1:
-    st.info('**GitHub:[@anilremo23](https://github.com/anilremo23)**',icon="🧠")
-with c2:
-    st.info('**Kaggle:[@remoanil](https://www.kaggle.com/remoanil)**',icon="💻")
-with c3:
-    st.info('**LinkedIn:[@AnilMamidwar](https://www.linkedin.com/in/anil-mamidwar-001b6418/)**',icon="👨‍💼")
-    
-      
