@@ -6,137 +6,97 @@ import numpy as np
 import string
 import nltk
 from nltk.corpus import stopwords
+import string
 from nltk.stem.porter import PorterStemmer
-import os
+import pandas as pd
+ps=PorterStemmer()   
+from xgboost import XGBClassifier
 
-# =============================================
-# NLTK Setup with Persistent Download Solution
-# =============================================
-try:
-    # Try to find the punkt resource
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    # If not found, download with custom path
-    nltk.download('punkt', download_dir='/tmp/nltk_data')
-    nltk.data.path.append('/tmp/nltk_data')
+nltk.download('punkt')
+nltk.download('stopwords')
 
-try:
-    # Try to find stopwords
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    # If not found, download with custom path
-    nltk.download('stopwords', download_dir='/tmp/nltk_data')
-    nltk.data.path.append('/tmp/nltk_data')
 
-# Initialize stemmer
-ps = PorterStemmer()
 
-# =============================================
-# Text Processing with Fallback Tokenizer
-# =============================================
 def transform_text(text):
-    try:
-        text = str(text).lower()
-        y = []
-        
-        # Attempt NLTK tokenization with fallback
-        try:
-            text = nltk.word_tokenize(text)
-        except:
-            # Simple whitespace tokenizer fallback
-            text = text.split()
-            
+        text=text.lower()
+        y=[]
+        #tokenization
+        text=nltk.word_tokenize(text)
         for i in text:
             if i.isalnum():
                 y.append(i)
-        text = y[:]
+        text=y[:]
         y.clear()
-        
-        # Get stopwords with fallback
-        try:
-            stop_words = set(stopwords.words('english'))
-        except:
-            stop_words = set()  # Empty set if stopwords not available
-            
+        #removing stopwords and punctuations
         for i in text:
-            if i not in stop_words and i not in string.punctuation:
+            if i not in stopwords.words('english') and i not in string.punctuation:
                 y.append(i)
-        text = y[:]
+        text=y[:]
         y.clear()
-        
-        # Stemming
+    
+        #stemming applied on text
         for i in text:
             y.append(ps.stem(i))
-            
-        return " ".join(y)
-    except Exception as e:
-        st.error(f"Error processing text: {str(e)}")
-        return ""
+        return y
 
-# =============================================
-# Model Loading with Verification
-# =============================================
-try:
-    # Try loading from absolute path first
-    try:
-        tfidf = pickle.load(open('/mount/src/streamapp/SMS_Spam_Classifier/vectorizer.pkl', 'rb'))
-        model = pickle.load(open('/mount/src/streamapp/SMS_Spam_Classifier/mnb_spam_detector.pkl', 'rb'))
-    except:
-        # Fallback to relative path
-        tfidf = pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl', 'rb'))
-        model = pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl', 'rb'))
-        
-    # Verify vectorizer is fitted
-    if not hasattr(tfidf, 'vocabulary_'):
-        raise ValueError("Vectorizer is not fitted properly")
-except Exception as e:
-    st.error(f"Model loading failed: {str(e)}")
-    st.stop()
 
-# =============================================
-# Streamlit UI
-# =============================================
-st.title("SMS Spam Classifier")
 
-# Image with fallback
-try:
-    st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
-except:
-    st.warning("Could not load preview image")
+
+#remove SMS_Spam_Classifier name from path while deploying locally 
+
+tfidf=pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl','rb'))
+model=pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl','rb'))
+
+st.title("SMS Spam classifier")
+
+#content
+
+st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
 
 st.write("""
-This classifier detects spam SMS messages using machine learning.
-""")
+A spam classifier uses machine learning to distinguish between legitimate and unsolicited emails . it employs algorithm to analyze content and other features to flag emails spam or not spam.
 
-input_sms = st.text_area("Enter the message to check")
+Algorithm used to train the model is stacking classifier(SVM,NB,Xgboost)
+
+"""
+ 
+)
+
+
+
+
+input_sms= st.text_area("Enter the message to check")
+
 
 if st.button('Predict'):
-    if not input_sms.strip():
-        st.warning("Please enter a message")
-    else:
-        try:
-            # Transform and predict
-            transformed = transform_text(input_sms)
-            vectorized = tfidf.transform([transformed])
-            prediction = model.predict(vectorized)[0]
-            
-            if prediction == 1:
-                st.error("Spam 🚨")
-            else:
-                st.success("Not Spam ✅")
-                
-        except Exception as e:
-            st.error(f"Prediction failed: {str(e)}")
-            st.write("Debug Info:")
-            st.write(f"Input text: {input_sms}")
-            st.write(f"Transformed text: {transformed}")
 
-# Footer
-st.markdown("---")
-cols = st.columns(3)
-with cols[0]:
-    st.info('**[GitHub](https://github.com/anilremo23)**')
-with cols[1]:
-    st.info('**[Kaggle](https://www.kaggle.com/remoanil)**')
-with cols[2]:
-    st.info('**[LinkedIn](https://www.linkedin.com/in/anil-mamidwar-001b6418/)**')
+    #1.preprocess    
+    transform_sms=transform_text(input_sms)
+    print(type(transform_sms))
+    transform_sms=np.array(transform_sms)
+    #2.vectorize
+    vector_input=tfidf.transform(transform_sms.astype('str')).toarray()
+    print(type(vector_input))
+    print(vector_input)
+    vector_input = pd.DataFrame(vector_input,columns=tfidf.get_feature_names_out())
+
+    #3.predict
+
+    prediction= model.predict(vector_input)[0]
+    #4.display
+    #st.header("Spam") if prediction else st.header("Not Spam")
+    if prediction==1:
+        st.header("Spam")
+    else:
+        st.header("Not Spam")
+        
+
+c1,c2,c3 = st.columns(3)
+with c1:
+    st.info('**GitHub:[@anilremo23](https://github.com/anilremo23)**',icon="🧠")
+with c2:
+    st.info('**Kaggle:[@remoanil](https://www.kaggle.com/remoanil)**',icon="💻")
+with c3:
+    st.info('**LinkedIn:[@AnilMamidwar](https://www.linkedin.com/in/anil-mamidwar-001b6418/)**',icon="👨‍💼")
+    
+      
