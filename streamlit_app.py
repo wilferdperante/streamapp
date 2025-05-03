@@ -11,35 +11,43 @@ from nltk.stem.porter import PorterStemmer
 import pandas as pd
 ps=PorterStemmer()   
 from xgboost import XGBClassifier
+# Set the NLTK data path to the local directory
+nltk.data.path.append('./nltk_data')
 
-nltk.download('punkt')
-nltk.download('stopwords')
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+from xgboost import XGBClassifier
 
+# Download NLTK resources (if not already present)
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', download_dir='./nltk_data')
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords', download_dir='./nltk_data')
 
+ps = PorterStemmer()
 
+# Rest of your code remains the same...
 def transform_text(text):
-        text=text.lower()
-        y=[]
-        #tokenization
-        text=nltk.word_tokenize(text)
-        for i in text:
-            if i.isalnum():
-                y.append(i)
-        text=y[:]
-        y.clear()
-        #removing stopwords and punctuations
-        for i in text:
-            if i not in stopwords.words('english') and i not in string.punctuation:
-                y.append(i)
-        text=y[:]
-        y.clear()
-    
-        #stemming applied on text
-        for i in text:
-            y.append(ps.stem(i))
-        return y
-
-
+    text = text.lower()
+    y = []
+    text = nltk.word_tokenize(text)
+    for i in text:
+        if i.isalnum():
+            y.append(i)
+    text = y[:]
+    y.clear()
+    for i in text:
+        if i not in stopwords.words('english') and i not in string.punctuation:
+            y.append(i)
+    text = y[:]
+    y.clear()
+    for i in text:
+        y.append(ps.stem(i))
+    return " ".join(y)  # Ensure you return a string for vectorization
 
 
 #remove SMS_Spam_Classifier name from path while deploying locally 
