@@ -1,132 +1,102 @@
 import streamlit as st
 from PIL import Image
 import pickle
+import pandas as pd
 import numpy as np
 import string
 import nltk
 from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
-import os
-from sklearn.feature_extraction.text import TfidfVectorizer
+import string
+from nltk.stem.porter import PorterStemmer
+import pandas as pd
+ps=PorterStemmer()   
+from xgboost import XGBClassifier
 
-# =============================================
-# NLTK Setup with Persistent Download Solution
-# =============================================
-try:
-    # Set NLTK data path
-    nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
-    os.makedirs(nltk_data_path, exist_ok=True)
-    nltk.data.path.append(nltk_data_path)
-    
-    # Download required data
-    nltk.download('punkt', download_dir=nltk_data_path, quiet=True)
-    nltk.download('stopwords', download_dir=nltk_data_path, quiet=True)
-except Exception as e:
-    st.error(f"NLTK setup failed: {str(e)}")
+nltk.download('punkt')
+nltk.download('stopwords')
 
-ps = PorterStemmer()
 
-# =============================================
-# Text Processing Function
-# =============================================
+
 def transform_text(text):
-    try:
-        text = str(text).lower()
-        text = nltk.word_tokenize(text)
-        
-        words = []
-        for word in text:
-            if word.isalnum() and word not in stopwords.words('english') and word not in string.punctuation:
-                words.append(ps.stem(word))
-                
-        return " ".join(words)
-    except Exception as e:
-        st.error(f"Text processing error: {str(e)}")
-        return ""
-
-# =============================================
-# Vectorizer and Model Loading with Fallback
-# =============================================
-def load_or_create_vectorizer():
-    # Try to load existing vectorizer
-    for path in ['vectorizer.pkl', 'SMS_Spam_Classifier/vectorizer.pkl']:
-        try:
-            with open(path, 'rb') as f:
-                vectorizer = pickle.load(f)
-                if hasattr(vectorizer, 'vocabulary_'):
-                    return vectorizer
-        except:
-            continue
+        text=text.lower()
+        y=[]
+        #tokenization
+        text=nltk.word_tokenize(text)
+        for i in text:
+            if i.isalnum():
+                y.append(i)
+        text=y[:]
+        y.clear()
+        #removing stopwords and punctuations
+        for i in text:
+            if i not in stopwords.words('english') and i not in string.punctuation:
+                y.append(i)
+        text=y[:]
+        y.clear()
     
-    # Create new vectorizer if loading fails
-    st.warning("Creating default vectorizer - for best results, provide a properly trained one")
-    vectorizer = TfidfVectorizer()
-    # Fit with some basic data
-    vectorizer.fit(["free prize", "hello world", "win money", "meeting tomorrow"])
-    return vectorizer
+        #stemming applied on text
+        for i in text:
+            y.append(ps.stem(i))
+        return y
 
-def load_model():
-    for path in ['mnb_spam_detector.pkl', 'SMS_Spam_Classifier/mnb_spam_detector.pkl']:
-        try:
-            with open(path, 'rb') as f:
-                return pickle.load(f)
-        except:
-            continue
-    st.error("Could not load model file")
-    st.stop()
 
-tfidf = load_or_create_vectorizer()
-model = load_model()
 
-# =============================================
-# Streamlit UI
-# =============================================
-st.title("SMS Spam Classifier")
 
-# Try to load image
-try:
-    img_path = next(p for p in ['spam_image.jpeg', 'SMS_Spam_Classifier/spam_image.jpeg'] 
-                   if os.path.exists(p))
-    st.image(Image.open(img_path))
-except:
-    st.warning("Could not load preview image")
+#remove SMS_Spam_Classifier name from path while deploying locally 
+
+tfidf=pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl','rb'))
+model=pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl','rb'))
+
+st.title("SMS Spam classifier")
+
+#content
+
+st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
 
 st.write("""
-Detect spam SMS messages using machine learning.
-Algorithm: Stacking Classifier (SVM, Naive Bayes, XGBoost)
-""")
+A spam classifier uses machine learning to distinguish between legitimate and unsolicited emails . it employs algorithm to analyze content and other features to flag emails spam or not spam.
 
-input_sms = st.text_area("Enter the message to check", height=100)
+Algorithm used to train the model is stacking classifier(SVM,NB,Xgboost)
+
+"""
+ 
+)
+
+
+
+
+input_sms= st.text_area("Enter the message to check")
+
 
 if st.button('Predict'):
-    if not input_sms.strip():
-        st.warning("Please enter a message")
-    else:
-        try:
-            # Transform and predict
-            processed_text = transform_text(input_sms)
-            features = tfidf.transform([processed_text])
-            prediction = model.predict(features)[0]
-            
-            if prediction == 1:
-                st.error("🚨 SPAM detected!")
-            else:
-                st.success("✅ Legitimate message")
-                
-            # Show processing details (optional)
-            with st.expander("Show processing details"):
-                st.write("Processed text:", processed_text)
-                st.write("Prediction confidence:", max(model.predict_proba(features)[0]))
-                
-        except Exception as e:
-            st.error(f"Prediction error: {str(e)}")
 
-# Footer
-st.markdown("---")
-cols = st.columns(3)
-with cols[0]:
-    st.info('[GitHub](https://github.com/anilremo23)')
-with cols[1]:
-    st.info('[Kaggle](https://www.kaggle.com/remoanil)')
-with cols[2]:
-    st.info('[LinkedIn](https://linkedin.com/in/anil-mamidwar-001b6418)')
+    #1.preprocess    
+    transform_sms=transform_text(input_sms)
+    print(type(transform_sms))
+    transform_sms=np.array(transform_sms)
+    #2.vectorize
+    vector_input=tfidf.transform(transform_sms.astype('str')).toarray()
+    print(type(vector_input))
+    print(vector_input)
+    vector_input = pd.DataFrame(vector_input,columns=tfidf.get_feature_names_out())
+
+    #3.predict
+
+    prediction= model.predict(vector_input)[0]
+    #4.display
+    #st.header("Spam") if prediction else st.header("Not Spam")
+    if prediction==1:
+        st.header("Spam")
+    else:
+        st.header("Not Spam")
+        
+
+c1,c2,c3 = st.columns(3)
+with c1:
+    st.info('**GitHub:[@anilremo23](https://github.com/anilremo23)**',icon="🧠")
+with c2:
+    st.info('**Kaggle:[@remoanil](https://www.kaggle.com/remoanil)**',icon="💻")
+with c3:
+    st.info('**LinkedIn:[@AnilMamidwar](https://www.linkedin.com/in/anil-mamidwar-001b6418/)**',icon="👨‍💼")
+    
+      
