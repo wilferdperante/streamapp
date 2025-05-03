@@ -9,37 +9,76 @@ from nltk.corpus import stopwords
 import string
 from nltk.stem.porter import PorterStemmer
 import pandas as pd
+import os
 ps=PorterStemmer()   
 from xgboost import XGBClassifier
 
-nltk.download('punkt')
-nltk.download('stopwords')
+# =============================================
+# NLTK Setup with Persistent Download Solution
+# =============================================
+try:
+    # Set NLTK data path to a writable directory
+    nltk_data_path = os.path.join(os.getcwd(), 'nltk_data')
+    os.makedirs(nltk_data_path, exist_ok=True)
+    nltk.data.path.append(nltk_data_path)
+    
+    # Download required NLTK data with error handling
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt', download_dir=nltk_data_path)
+        
+    try:
+        nltk.data.find('corpora/stopwords')
+    except LookupError:
+        nltk.download('stopwords', download_dir=nltk_data_path)
+except Exception as e:
+    st.error(f"NLTK setup failed: {str(e)}")
 
+# Initialize stemmer
+ps = PorterStemmer()
 
-
+# =============================================
+# Text Processing with Fallback Tokenizer
+# =============================================
 def transform_text(text):
-        text=text.lower()
-        y=[]
-        #tokenization
-        text=nltk.word_tokenize(text)
+    try:
+        text = str(text).lower()
+        y = []
+        
+        # Tokenization with fallback
+        try:
+            text = nltk.word_tokenize(text)
+        except:
+            # Fallback to simple whitespace tokenizer
+            text = text.split()
+            
         for i in text:
             if i.isalnum():
                 y.append(i)
-        text=y[:]
+        text = y[:]
         y.clear()
-        #removing stopwords and punctuations
+        
+        # Stopwords with fallback
+        try:
+            stop_words = set(stopwords.words('english'))
+        except:
+            stop_words = set()
+            
         for i in text:
-            if i not in stopwords.words('english') and i not in string.punctuation:
+            if i not in stop_words and i not in string.punctuation:
                 y.append(i)
-        text=y[:]
+        text = y[:]
         y.clear()
-    
-        #stemming applied on text
+        
+        # Stemming
         for i in text:
             y.append(ps.stem(i))
-        return y
-
-
+            
+        return " ".join(y)  # Return as space-separated string
+    except Exception as e:
+        st.error(f"Error processing text: {str(e)}")
+        return ""
 
 
 #remove SMS_Spam_Classifier name from path while deploying locally 
