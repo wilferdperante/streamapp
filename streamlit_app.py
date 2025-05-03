@@ -6,11 +6,8 @@ import numpy as np
 import string
 import nltk
 from nltk.corpus import stopwords
-import string
 from nltk.stem.porter import PorterStemmer
-import pandas as pd
 import os
-ps=PorterStemmer()   
 from xgboost import XGBClassifier
 
 # =============================================
@@ -80,62 +77,101 @@ def transform_text(text):
         st.error(f"Error processing text: {str(e)}")
         return ""
 
+# =============================================
+# Model Loading with Verification
+# =============================================
+try:
+    # Try multiple possible paths for model files
+    model_paths = [
+        'SMS_Spam_Classifier/vectorizer.pkl',
+        'vectorizer.pkl',
+        '/mount/src/streamapp/vectorizer.pkl'
+    ]
+    
+    for path in model_paths:
+        try:
+            tfidf = pickle.load(open(path, 'rb'))
+            if hasattr(tfidf, 'vocabulary_'):  # Verify vectorizer is fitted
+                break
+        except:
+            continue
+            
+    model_paths = [
+        'SMS_Spam_Classifier/mnb_spam_detector.pkl',
+        'mnb_spam_detector.pkl',
+        '/mount/src/streamapp/mnb_spam_detector.pkl'
+    ]
+    
+    for path in model_paths:
+        try:
+            model = pickle.load(open(path, 'rb'))
+            break
+        except:
+            continue
+            
+    if not hasattr(tfidf, 'vocabulary_'):
+        raise ValueError("Vectorizer is not fitted properly")
+        
+except Exception as e:
+    st.error(f"Model loading failed: {str(e)}")
+    st.stop()
 
-#remove SMS_Spam_Classifier name from path while deploying locally 
+# =============================================
+# Streamlit UI
+# =============================================
+st.title("SMS Spam Classifier")
 
-tfidf=pickle.load(open('SMS_Spam_Classifier/vectorizer.pkl','rb'))
-model=pickle.load(open('SMS_Spam_Classifier/mnb_spam_detector.pkl','rb'))
-
-st.title("SMS Spam classifier")
-
-#content
-
-st.image(Image.open('SMS_Spam_Classifier/spam_image.jpeg'))
+# Image with fallback
+try:
+    image_paths = [
+        'SMS_Spam_Classifier/spam_image.jpeg',
+        'spam_image.jpeg',
+        '/mount/src/streamapp/spam_image.jpeg'
+    ]
+    for path in image_paths:
+        try:
+            st.image(Image.open(path))
+            break
+        except:
+            continue
+except:
+    st.warning("Could not load preview image")
 
 st.write("""
-A spam classifier uses machine learning to distinguish between legitimate and unsolicited emails . it employs algorithm to analyze content and other features to flag emails spam or not spam.
+A spam classifier that detects SMS spam messages using machine learning.
+Algorithm used: stacking classifier (SVM, NB, Xgboost)
+""")
 
-Algorithm used to train the model is stacking classifier(SVM,NB,Xgboost)
-
-"""
- 
-)
-
-
-
-
-input_sms= st.text_area("Enter the message to check")
-
+input_sms = st.text_area("Enter the message to check")
 
 if st.button('Predict'):
-
-    #1.preprocess    
-    transform_sms=transform_text(input_sms)
-    print(type(transform_sms))
-    transform_sms=np.array(transform_sms)
-    #2.vectorize
-    vector_input=tfidf.transform(transform_sms.astype('str')).toarray()
-    print(type(vector_input))
-    print(vector_input)
-    vector_input = pd.DataFrame(vector_input,columns=tfidf.get_feature_names_out())
-
-    #3.predict
-
-    prediction= model.predict(vector_input)[0]
-    #4.display
-    #st.header("Spam") if prediction else st.header("Not Spam")
-    if prediction==1:
-        st.header("Spam")
+    if not input_sms.strip():
+        st.warning("Please enter a message")
     else:
-        st.header("Not Spam")
-        
+        try:
+            # 1. Preprocess
+            transform_sms = transform_text(input_sms)
+            
+            # 2. Vectorize
+            vector_input = tfidf.transform([transform_sms]).toarray()
+            
+            # 3. Predict
+            prediction = model.predict(vector_input)[0]
+            
+            # 4. Display
+            if prediction == 1:
+                st.error("Spam 🚨")
+            else:
+                st.success("Not Spam ✅")
+                
+        except Exception as e:
+            st.error(f"Prediction failed: {str(e)}")
 
-c1,c2,c3 = st.columns(3)
-with c1:
-    st.info('**GitHub:[@anilremo23](https://github.com/anilremo23)**',icon="🧠")
-with c2:
-    st.info('**Kaggle:[@remoanil](https://www.kaggle.com/remoanil)**',icon="💻")
-with c3:
-    st.info('**LinkedIn:[@AnilMamidwar](https://www.linkedin.com/in/anil-mamidwar-001b6418/)**',icon="👨‍💼")
-    
-      
+# Footer
+cols = st.columns(3)
+with cols[0]:
+    st.info('**GitHub: [@anilremo23](https://github.com/anilremo23)**', icon="🧠")
+with cols[1]:
+    st.info('**Kaggle: [@remoanil](https://www.kaggle.com/remoanil)**', icon="💻")
+with cols[2]:
+    st.info('**LinkedIn: [@AnilMamidwar](https://www.linkedin.com/in/anil-mamidwar-001b6418/)**', icon="👨‍💼")
