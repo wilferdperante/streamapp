@@ -1,6 +1,7 @@
-pandas
-numpy
-nltk
-xgboost==1.5.2
-scikit-learn
 streamlit
+Pillow
+numpy
+pandas
+nltk
+xgboost
+pickle
